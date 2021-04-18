@@ -1,25 +1,151 @@
-import logo from './logo.svg';
+import React, { useState, useEffect } from 'react';
 import './App.css';
+import db from './firebase'
+import firebase from 'firebase';
+import { DeleteRounded , EditTwoTone } from '@material-ui/icons';
+
+import { Button, TextField, Container, IconButton, List, ListItem, ListItemSecondaryAction, ListItemText, Dialog, DialogContent, DialogActions } from '@material-ui/core';
+
+
 
 function App() {
+  const [todos, setTodos] = useState([]);
+  const [input, setInput] = useState('');
+  const [open, setOpen] = useState(false);
+  const [update, setUpdate] = useState('');
+  const [toUpdateId, setToUpdateId] = useState('');
+
+
+  useEffect(() => {
+    console.log('useEffect Hook!!!');
+
+    db.collection('todos').orderBy('datetime', 'desc').onSnapshot(snapshot => {
+      console.log('Firebase Snap!');
+      setTodos(snapshot.docs.map(doc => {
+        return {
+          id: doc.id,
+          name: doc.data().todo,
+          datatime: doc.data().datatime
+        }
+      }))
+    })
+
+  }, []);
+
+  const addTodo = (event) => {
+    event.preventDefault();
+    db.collection('todos').add({
+      todo: input,
+      datetime: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    setInput('');
+  }
+
+  const deleteTodo = (id) => {
+    db.collection('todos').doc(id).delete().then(res => {
+      console.log('Deleted!', res);
+    });
+  }
+
+  const openUpdateDialog = (todo) => {
+    setOpen(true);
+    setToUpdateId(todo.id);
+    setUpdate(todo.name);
+  }
+
+  const editTodo = () => {
+    db.collection('todos').doc(toUpdateId).update({
+      todo: update
+    });
+    setOpen(false);
+  }
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+  
+    <Container maxWidth="sm">
+
+      <form noValidate>
+
+        <TextField
+          variant="filled"
+          margin="normal"
+          required
+          fullWidth
+          id="todo"
+          label="Add New ToDo"
+          name="todo"
+          autoFocus
+          value={input}
+          onChange={event => setInput(event.target.value)}
+        />
+
+        <Button
+          type="submit"
+          variant="container"
+          color="primary"
+          onClick={addTodo}
+          disabled={!input}
+      
         >
-          Learn React
-        </a>
-      </header>
-    </div>
+          Submit
+      </Button>
+
+      </form>
+
+      <List dense={true}>
+        {
+          todos.map(todo => (
+
+            <ListItem key={todo.id} >
+
+              <ListItemText
+                primary={todo.name}
+                secondary={todo.datetime}
+              />
+
+              <ListItemSecondaryAction>
+                <IconButton edge="end" aria-label="Edit" onClick={() => openUpdateDialog(todo)}>
+                  <EditTwoTone />
+                </IconButton>
+                <IconButton edge="end" aria-label="delete" onClick={() => deleteTodo(todo.id)}>
+                  <DeleteRounded />
+                </IconButton>
+              </ListItemSecondaryAction>
+
+            </ListItem>
+          ))
+        }
+      </List>
+
+      <Dialog open={open} onClose={handleClose}>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="normal"
+            label="Update Todo"
+            type="text"
+            fullWidth
+            name="updateTodo"
+            value={update}
+            onChange={event => setUpdate(event.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="primary">
+            Update
+          </Button>
+          <Button onClick={editTodo} color="primary">
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+    </Container >
   );
 }
-
 export default App;
